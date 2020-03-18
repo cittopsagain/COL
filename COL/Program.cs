@@ -47,12 +47,13 @@ namespace COL
                 try
                 {
                     option = Convert.ToInt32(Console.ReadLine());
-                } catch(Exception ex)
+                }
+                catch (Exception ex)
                 {
                     Console.WriteLine(INVALID_OPTION);
                     display(conn);
                 }
-                
+
                 if (option == 1)
                 {
                     Console.WriteLine("* New Company *");
@@ -64,7 +65,7 @@ namespace COL
                     compName = Console.ReadLine();
                     if (Companies.isCompCodeExist(conn, compCode))
                     {
-                        Console.WriteLine(compCode+" "+ REC_EXIST);
+                        Console.WriteLine(compCode + " " + REC_EXIST);
                         Menu.display(conn);
                         return;
                     }
@@ -90,35 +91,39 @@ namespace COL
                     try
                     {
                         price = Convert.ToDouble(Console.ReadLine());
-                    } catch(Exception ex)
+                    }
+                    catch (Exception ex)
                     {
                         price = 0.00;
                     }
-                    
+
                     Console.WriteLine("Qty:");
                     try
                     {
                         qty = Convert.ToInt32(Console.ReadLine());
-                    } catch(Exception ex)
+                    }
+                    catch (Exception ex)
                     {
                         qty = 0;
                     }
-                    
+
                     if (!Companies.isCompCodeExist(conn, compCode))
                     {
-                        Console.WriteLine(compCode+" "+ REC_NOT_EXIST);
+                        Console.WriteLine(compCode + " " + REC_NOT_EXIST);
                         Menu.display(conn);
                         return;
                     }
                     if (Stocks.insert(conn, compCode, price, qty))
                     {
                         Console.WriteLine(SUCCESS_SAVE);
-                    } else
+                    }
+                    else
                     {
                         Console.WriteLine(ERROR_SAVE);
                     }
                     Menu.display(conn);
-                } else if (option == 3)
+                }
+                else if (option == 3)
                 {
                     string compCode = "";
                     Console.WriteLine("* Portfolio *");
@@ -126,40 +131,54 @@ namespace COL
                     compCode = Console.ReadLine();
                     if (!Companies.isCompCodeExist(conn, compCode))
                     {
-                        Console.WriteLine(compCode+" "+ REC_NOT_EXIST);
+                        Console.WriteLine(compCode + " " + REC_NOT_EXIST);
                         Menu.display(conn);
-                    } else
+                    }
+                    else
                     {
                         string compName = "";
-                        MySqlDataReader compRdr = Companies.getCompanyByCode(conn, compCode);
+                        MySqlDataReader compRdr = Companies.getCompanyByCompCode(conn, compCode);
                         while (compRdr.Read())
                         {
                             compName = compRdr["comp_name"].ToString();
                         }
                         compRdr.Close();
                         Console.WriteLine(compName);
-                        MySqlDataReader rdr = Stocks.getStocks(conn);
+                        MySqlDataReader rdr = Stocks.getStocksByCompCode(conn, compCode);
                         // TO DO: Must dynamic
-                        Console.WriteLine("-----------------------------------------------------------------------------------------------------------------------------------\r\n" +
-                            "+     Date     |   Price   |   Qty   |  Amount Invested  |  Total Amount Invested  |  Total Qty  |  Stock Value  |  Gain or Loss  +\r\n"+
-                            "-----------------------------------------------------------------------------------------------------------------------------------");
-                        DataTable dt = new DataTable();
-                        dt.Load(compRdr);
-                        for (int i = 0; i <= dt.Rows.Count; i++)
+                        Console.WriteLine("+--------------+-----------+---------+-------------------+-------------------------+-------------+---------------+----------------+\r\n" +
+                            "+     Date     |   Price   |   Qty   |  Amount Invested  |  Total Amount Invested  |  Total Qty  |  Stock Value  |  Gain or Loss  +\r\n" +
+                            "+--------------+-----------+---------+-------------------+-------------------------+-------------+---------------+----------------+");
+                        DataTable dtStocks = new DataTable(); // Optional to use the Datatable here, we can use directly the rdr.Read()
+                        dtStocks.Load(rdr);
+
+                        double totalAmtInvested = 0.00;
+                        int totalQty = 0;
+                        String data = "";
+                        for (int i = 0; i < dtStocks.Rows.Count; i++)
                         {
-                            Console.WriteLine("Here: "+dt.Rows[i]);
-                        }
-                        /* while (rdr.Read())
-                        {
-                            DateTime dt = DateTime.Parse(rdr["date"].ToString());
-                            int qty = Convert.ToInt32(rdr["qty"]);
-                            double price = Convert.ToDouble(rdr["price"]);
+                            DateTime dt = DateTime.Parse(dtStocks.Rows[i]["date"].ToString());
+                            int qty = Convert.ToInt32(dtStocks.Rows[i]["qty"]);
+                            double price = Convert.ToDouble(dtStocks.Rows[i]["price"]);
                             double amtInvested = qty * price;
-                            Console.WriteLine("| "+dt.ToString("MM/dd/yyyy") +"   | "+
-                                price+Menu.strRepeat(price.ToString(), 10)+"| "+
-                                qty+Menu.strRepeat(qty.ToString(), 8)+"| "+
-                                amtInvested+Menu.strRepeat(amtInvested.ToString(), 18)+"| ");
-                        } */
+                            totalAmtInvested += amtInvested;
+                            totalQty += qty;
+
+                            double stockValue = totalQty * price;
+                            double gainOrLoss = stockValue - totalAmtInvested;
+
+                            data += "| " + dt.ToString("MM/dd/yyyy") + "   | " +
+                                price + strRepeat(price.ToString(), 10) + "| " +
+                                qty + strRepeat(qty.ToString(), 8) + "| " +
+                                Math.Round(amtInvested, 2) + strRepeat(amtInvested.ToString(), 18) + "| " +
+                                Math.Round(totalAmtInvested, 2) + strRepeat(totalAmtInvested.ToString(), 24) + "| " +
+                                totalQty + strRepeat(totalQty.ToString(), 12) + "| " +
+                                Math.Round(stockValue, 2) + strRepeat(stockValue.ToString(), 14) + "| " +
+                                Math.Round(gainOrLoss, 2) + strRepeat(gainOrLoss.ToString(), 15) + "| \r\n";
+                        }
+                        data += "+--------------+-----------+---------+-------------------+-------------------------+-------------+---------------+----------------+";
+                        Console.Write(data);
+
                         rdr.Close();
                     }
                 }
@@ -190,7 +209,8 @@ namespace COL
             {
                 conn.Open();
                 return conn;
-            } catch(Exception ex)
+            }
+            catch (Exception ex)
             {
                 Console.WriteLine(ex);
             }
@@ -202,7 +222,7 @@ namespace COL
     {
         static Companies()
         {
-           
+
         }
 
         public static bool insert(MySqlConnection conn, string compCode, string compName)
@@ -219,7 +239,7 @@ namespace COL
             return true;
         }
 
-        public static MySqlDataReader getCompanyByCode(MySqlConnection conn, string compCode)
+        public static MySqlDataReader getCompanyByCompCode(MySqlConnection conn, string compCode)
         {
             string sql = "SELECT * FROM companies WHERE comp_code = @CompCode";
             MySqlCommand cmd = new MySqlCommand(sql, conn);
@@ -270,12 +290,13 @@ namespace COL
             return true;
         }
 
-        public static MySqlDataReader getStocks(MySqlConnection conn)
+        public static MySqlDataReader getStocksByCompCode(MySqlConnection conn, string compCode)
         {
-            string sql = "SELECT * FROM stocks";
+            string sql = "SELECT * FROM stocks WHERE comp_code = @CompCode";
             MySqlCommand cmd = new MySqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@CompCode", compCode);
             MySqlDataReader rdr = cmd.ExecuteReader();
-
+            
             return rdr;
         }
     }
